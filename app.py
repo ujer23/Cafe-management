@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import mysql.connector
 import bcrypt
@@ -12,7 +12,7 @@ DB_CONFIG = {
     "host":     os.environ.get("DB_HOST",     "localhost"),
     "user":     os.environ.get("DB_USER",     "root"),
     "password": os.environ.get("DB_PASSWORD", ""),
-    "database": os.environ.get("DB_NAME",     "devops"),   # your existing DB
+    "database": os.environ.get("DB_NAME",     "devops"),
     "port":     int(os.environ.get("DB_PORT", 3306))
 }
 
@@ -48,8 +48,13 @@ def init_db():
     conn.close()
     print("✅ Tables ready in database:", DB_CONFIG["database"])
 
-# ─── HEALTH CHECK ─────────────────────────────────────────────────────────
+# ─── HOME (SHOW WEBSITE) ────────────────────────────────────────────────
 @app.route("/", methods=["GET"])
+def home():
+    return render_template("index.html")
+
+# ─── HEALTH CHECK (API) ─────────────────────────────────────────────────
+@app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "message": "Cafe.com API is running 🚀"})
 
@@ -119,7 +124,6 @@ def save_order():
     conn   = get_db()
     cursor = conn.cursor()
     try:
-        # Look up user_id if logged in
         user_id = None
         if username and username != "guest":
             cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
