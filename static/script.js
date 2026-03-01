@@ -72,9 +72,16 @@ function stage(state) {
 
   if (state === "placed")    renderBill(true, true);
   if (state === "preparing") renderBill(false, false, "⏳ Your order is being prepared with love…");
-  if (state === "ontheway")  startCountdown(20);
+  if (state === "ontheway") {
+    startCountdown(20);
+    // Disable Delivered button — only unlocks when countdown finishes
+    const allBtns = ordersSection.querySelectorAll(".steps button");
+    allBtns.forEach(b => { if (b.innerText.includes("Delivered")) b.disabled = true; });
+  }
 
   if (state === "delivered") {
+    // Re-enable all buttons
+    ordersSection.querySelectorAll(".steps button").forEach(b => b.disabled = false);
     const orderBox = document.getElementById("orderBox");
     orderBox.innerHTML = `
       <div style="text-align:center;padding:20px 0;">
