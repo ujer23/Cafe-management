@@ -10,14 +10,28 @@ let remainingSeconds = 0;
 
 /* ─── RESTORE LOGIN ON PAGE LOAD ─────────────────────────── */
 window.onload = () => {
-
   const u = localStorage.getItem("cafe_user");
   if (u) {
     currentUser = u;
     document.getElementById("userBtn").innerText = "👤 " + u;
   }
 
-  renderBill(true, true);
+  // Typing animation on home
+  const phrases = ["Fresh food, fast delivery ☕", "Near Wadia College 🎓", "Order in seconds 🚀"];
+  let pi = 0, ci = 0, deleting = false;
+  const typingEl = document.getElementById("typing");
+  if (typingEl) {
+    setInterval(() => {
+      const phrase = phrases[pi];
+      if (!deleting) {
+        typingEl.textContent = phrase.slice(0, ++ci);
+        if (ci === phrase.length) { deleting = true; setTimeout(() => {}, 1200); }
+      } else {
+        typingEl.textContent = phrase.slice(0, --ci);
+        if (ci === 0) { deleting = false; pi = (pi + 1) % phrases.length; }
+      }
+    }, 80);
+  }
 };
 
 /* ─── NAVIGATION ─────────────────────────────────────────── */
@@ -29,7 +43,6 @@ function show(id) {
 
 /* ─── ADD TO CART ────────────────────────────────────────── */
 function add(name, price, btn) {
-
   cart.push({ name, price });
 
   if (btn) {
@@ -40,23 +53,22 @@ function add(name, price, btn) {
       btn.classList.remove("added");
     }, 1200);
   }
-
-  // 🔥 update UI immediately
-  renderBill(true, true);
 }
 
 /* ─── REMOVE FROM CART ───────────────────────────────────── */
 function removeItem(i) {
   cart.splice(i, 1);
-  stage("placed");
+  renderBill(true, true);
 }
 
 /* ─── ORDER STAGES ───────────────────────────────────────── */
 function stage(state) {
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 
-  document.querySelectorAll(".steps button").forEach(b => b.classList.remove("active"));
-  const activeBtn = document.querySelector(`.steps button[onclick="stage('${state}')"]`);
+  // Scoped ONLY to #orders — avoids conflict with Account section tabs
+  const ordersSection = document.getElementById("orders");
+  ordersSection.querySelectorAll(".steps button").forEach(b => b.classList.remove("active"));
+  const activeBtn = ordersSection.querySelector(`.steps button[onclick="stage('${state}')"]`);
   if (activeBtn) activeBtn.classList.add("active");
 
   const mapBox = document.getElementById("mapBox");
@@ -68,7 +80,6 @@ function stage(state) {
 
   if (state === "delivered") {
     const orderBox = document.getElementById("orderBox");
-    const mapBox = document.getElementById("mapBox");
     orderBox.innerHTML = `
       <div style="text-align:center;padding:20px 0;">
         <div style="font-size:48px;margin-bottom:12px;">🎉</div>
@@ -76,7 +87,7 @@ function stage(state) {
         <p style="color:#f0e0cf;">Enjoy your meal. Thank you for ordering from Cafe.com ☕</p>
       </div>
     `;
-    mapBox.innerHTML = `
+    if (mapBox) mapBox.innerHTML = `
       <p>Visit Our Cafe</p>
       <iframe src="https://www.google.com/maps?q=18.53559062907352,73.88057564859866&output=embed"></iframe>
     `;
@@ -86,7 +97,6 @@ function stage(state) {
 
 /* ─── RENDER BILL ────────────────────────────────────────── */
 function renderBill(removable, showBtn, extraText = "") {
-
   const orderBox = document.getElementById("orderBox");
   if (!orderBox) return;
 
@@ -123,4 +133,136 @@ function renderBill(removable, showBtn, extraText = "") {
     ${extraText ? `<p style="margin-top:12px;color:#f0e0cf;font-size:14px;">${extraText}</p>` : ""}
     ${showBtn ? `<button class="action-btn" onclick="placeOrder()">Place Order →</button>` : ""}
   `;
+}
+
+/* ─── PLACE ORDER ────────────────────────────────────────── */
+async function placeOrder() {
+  if (!currentUser) {
+    alert("Please login first to place an order!");
+    show("user");
+    return;
+  }
+  if (cart.length === 0) {
+    alert("Your cart is empty!");
+    return;
+  }
+
+  const total = cart.reduce((s, i) => s + i.price, 0);
+
+  try {
+    const res = await fetch(`${API}/place_order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: currentUser, items: cart, total })
+    });
+    const data = await res.json();
+    if (data.success) {
+      stage("preparing");
+    } else {
+      alert(data.message || "Failed to place order.");
+    }
+  } catch (err) {
+    // If no backend endpoint yet, just advance stage
+    stage("preparing");
+  }
+}
+
+/* ─── COUNTDOWN (On The Way) ─────────────────────────────── */
+function startCountdown(minutes) {
+  const orderBox = document.getElementById("orderBox");
+  if (!orderBox) return;
+
+  remainingSeconds = minutes * 60;
+
+  function tick() {
+    const m = Math.floor(remainingSeconds / 60);
+    const s = remainingSeconds % 60;
+    const display = `${m}:${s.toString().padStart(2, "0")}`;
+
+    orderBox.innerHTML = `
+      <div class="delivery">
+        🚴 Your order is on the way!<br>
+        Estimated arrival:<br>
+        <b>${display}</b>
+      </div>
+    `;
+
+    if (remainingSeconds <= 0) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      stage("delivered");
+    }
+    remainingSeconds--;
+  }
+
+  tick();
+  countdownInterval = setInterval(tick, 1000);
+}
+
+/* ─── LOGIN ──────────────────────────────────────────────── */
+async function loginUser() {
+  const username = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value.trim();
+  const msg = document.getElementById("loginMsg");
+
+  if (!username || !password) { msg.innerText = "Please fill in all fields."; return; }
+
+  try {
+    const res = await fetch(`${API}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      currentUser = username;
+      localStorage.setItem("cafe_user", username);
+      document.getElementById("userBtn").innerText = "👤 " + username;
+      msg.style.color = "#2ecc71";
+      msg.innerText = "✅ Logged in successfully!";
+    } else {
+      msg.style.color = "#ff6b6b";
+      msg.innerText = data.message || "Invalid credentials.";
+    }
+  } catch (err) {
+    msg.style.color = "#ff6b6b";
+    msg.innerText = "Could not connect to server.";
+  }
+}
+
+/* ─── REGISTER ───────────────────────────────────────────── */
+async function registerUser() {
+  const username = document.getElementById("regUser").value.trim();
+  const password = document.getElementById("regPass").value.trim();
+  const msg = document.getElementById("registerMsg");
+
+  if (!username || !password) { msg.innerText = "Please fill in all fields."; return; }
+
+  try {
+    const res = await fetch(`${API}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      msg.style.color = "#2ecc71";
+      msg.innerText = "✅ Account created! You can now login.";
+      switchForm("login");
+    } else {
+      msg.style.color = "#ff6b6b";
+      msg.innerText = data.message || "Registration failed.";
+    }
+  } catch (err) {
+    msg.style.color = "#ff6b6b";
+    msg.innerText = "Could not connect to server.";
+  }
+}
+
+/* ─── AUTH TAB SWITCHER ──────────────────────────────────── */
+function switchForm(form) {
+  document.getElementById("loginForm").style.display    = form === "login"    ? "block" : "none";
+  document.getElementById("registerForm").style.display = form === "register" ? "block" : "none";
+  document.getElementById("loginTab").classList.toggle("active",    form === "login");
+  document.getElementById("registerTab").classList.toggle("active", form === "register");
 }
