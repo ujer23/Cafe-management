@@ -179,6 +179,11 @@ nav button:hover, nav button.nav-active {
   font-size: 14px;
   transition: all 0.25s;
 }
+.steps button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .steps button.active {
   background: var(--amber);
   color: #000;
