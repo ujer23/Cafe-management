@@ -16,7 +16,7 @@ window.onload = () => {
     document.getElementById("userBtn").innerText = "👤 " + u;
   }
 
-  // Typing animation on home
+  // Typing animation
   const phrases = ["Fresh food, fast delivery ☕", "Near Wadia College 🎓", "Order in seconds 🚀"];
   let pi = 0, ci = 0, deleting = false;
   const typingEl = document.getElementById("typing");
@@ -25,7 +25,7 @@ window.onload = () => {
       const phrase = phrases[pi];
       if (!deleting) {
         typingEl.textContent = phrase.slice(0, ++ci);
-        if (ci === phrase.length) { deleting = true; setTimeout(() => {}, 1200); }
+        if (ci === phrase.length) deleting = true;
       } else {
         typingEl.textContent = phrase.slice(0, --ci);
         if (ci === 0) { deleting = false; pi = (pi + 1) % phrases.length; }
@@ -44,14 +44,10 @@ function show(id) {
 /* ─── ADD TO CART ────────────────────────────────────────── */
 function add(name, price, btn) {
   cart.push({ name, price });
-
   if (btn) {
     btn.innerText = "✔ Added";
     btn.classList.add("added");
-    setTimeout(() => {
-      btn.innerText = "Add";
-      btn.classList.remove("added");
-    }, 1200);
+    setTimeout(() => { btn.innerText = "Add"; btn.classList.remove("added"); }, 1200);
   }
 }
 
@@ -65,7 +61,7 @@ function removeItem(i) {
 function stage(state) {
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 
-  // Scoped ONLY to #orders — avoids conflict with Account section tabs
+  // Scoped ONLY to #orders — avoids conflict with Account tabs
   const ordersSection = document.getElementById("orders");
   ordersSection.querySelectorAll(".steps button").forEach(b => b.classList.remove("active"));
   const activeBtn = ordersSection.querySelector(`.steps button[onclick="stage('${state}')"]`);
@@ -111,9 +107,7 @@ function renderBill(removable, showBtn, extraText = "") {
     return;
   }
 
-  let total = 0;
-  let html  = "";
-
+  let total = 0, html = "";
   cart.forEach((item, index) => {
     total += item.price;
     html += `
@@ -135,7 +129,7 @@ function renderBill(removable, showBtn, extraText = "") {
   `;
 }
 
-/* ─── PLACE ORDER ────────────────────────────────────────── */
+/* ─── PLACE ORDER → saves to DB via /save-order ─────────── */
 async function placeOrder() {
   if (!currentUser) {
     alert("Please login first to place an order!");
@@ -150,7 +144,7 @@ async function placeOrder() {
   const total = cart.reduce((s, i) => s + i.price, 0);
 
   try {
-    const res = await fetch(`${API}/place_order`, {
+    const res = await fetch(`${API}/save-order`, {   // ✅ matches Flask route /save-order
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: currentUser, items: cart, total })
@@ -162,8 +156,8 @@ async function placeOrder() {
       alert(data.message || "Failed to place order.");
     }
   } catch (err) {
-    // If no backend endpoint yet, just advance stage
-    stage("preparing");
+    console.error("Order error:", err);
+    alert("Could not connect to server.");
   }
 }
 
@@ -177,16 +171,13 @@ function startCountdown(minutes) {
   function tick() {
     const m = Math.floor(remainingSeconds / 60);
     const s = remainingSeconds % 60;
-    const display = `${m}:${s.toString().padStart(2, "0")}`;
-
     orderBox.innerHTML = `
       <div class="delivery">
         🚴 Your order is on the way!<br>
         Estimated arrival:<br>
-        <b>${display}</b>
+        <b>${m}:${s.toString().padStart(2, "0")}</b>
       </div>
     `;
-
     if (remainingSeconds <= 0) {
       clearInterval(countdownInterval);
       countdownInterval = null;
