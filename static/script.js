@@ -8,15 +8,8 @@ let cart = [];
 let countdownInterval = null;
 let remainingSeconds = 0;
 
-let orderBox;
-let mapBox;
-
 /* ─── RESTORE LOGIN ON PAGE LOAD ─────────────────────────── */
 window.onload = () => {
-
-  // 🔥 moved inside onload (prevents null issue)
-  orderBox = document.getElementById("orderBox");
-  mapBox   = document.getElementById("mapBox");
 
   const u = localStorage.getItem("cafe_user");
   if (u) {
@@ -66,6 +59,7 @@ function stage(state) {
   const activeBtn = document.querySelector(`.steps button[onclick="stage('${state}')"]`);
   if (activeBtn) activeBtn.classList.add("active");
 
+  const mapBox = document.getElementById("mapBox");
   if (mapBox) mapBox.innerHTML = "";
 
   if (state === "placed")    renderBill(true, true);
@@ -73,6 +67,8 @@ function stage(state) {
   if (state === "ontheway")  startCountdown(20);
 
   if (state === "delivered") {
+    const orderBox = document.getElementById("orderBox");
+    const mapBox = document.getElementById("mapBox");
     orderBox.innerHTML = `
       <div style="text-align:center;padding:20px 0;">
         <div style="font-size:48px;margin-bottom:12px;">🎉</div>
@@ -91,6 +87,7 @@ function stage(state) {
 /* ─── RENDER BILL ────────────────────────────────────────── */
 function renderBill(removable, showBtn, extraText = "") {
 
+  const orderBox = document.getElementById("orderBox");
   if (!orderBox) return;
 
   if (cart.length === 0) {
