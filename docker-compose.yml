@@ -21,8 +21,7 @@ services:
       start_period: 60s
 
   cafe-app:
-    build:
-      context: .
+    image : ujerk/jenkins-to-docker:latest
     environment:
       DB_USER: admin
       DB_PASSWORD: admin
