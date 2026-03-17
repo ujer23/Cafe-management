@@ -73,7 +73,7 @@ function stage(state) {
   if (state === "placed")    renderBill(true, true);
   if (state === "preparing") renderBill(false, false, "⏳ Your order is being prepared with love…");
   if (state === "ontheway") {
-    startCountdown(20);
+    if (!countdownInterval) startCountdown(remainingSeconds > 0 ? remainingSeconds / 60 : 20);
     // Disable Delivered button — only unlocks when countdown finishes
     const allBtns = ordersSection.querySelectorAll(".steps button");
     allBtns.forEach(b => { if (b.innerText.includes("Delivered")) b.disabled = true; });
